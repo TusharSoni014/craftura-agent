@@ -1,46 +1,59 @@
-
 import { Mastra } from '@mastra/core/mastra';
 import { PinoLogger } from '@mastra/loggers';
-import { LibSQLStore } from '@mastra/libsql';
-import { DuckDBStore } from "@mastra/duckdb";
-import { MastraCompositeStore } from '@mastra/core/storage';
+import { PostgresStore } from '@mastra/pg';
 import { Observability, MastraStorageExporter, MastraPlatformExporter, SensitiveDataFilter } from '@mastra/observability';
 import { weatherWorkflow } from './workflows/weather-workflow';
 import { weatherAgent } from './agents/weather-agent';
 
+type MastraGlobal = typeof globalThis & {
+  mastra?: Mastra;
+  mastraPgStore?: PostgresStore;
+};
 
-export const mastra = new Mastra({
-  workflows: { weatherWorkflow },
-  agents: { weatherAgent },
-  storage: new MastraCompositeStore({
-    id: 'composite-storage',
-    default: new LibSQLStore({
-      id: "mastra-storage",
-      // Uses a hosted database when deployed (mastra env db create --kind turso),
-      // and a local file during development.
-      url: process.env.TURSO_DATABASE_URL ?? "file:./mastra.db",
-      authToken: process.env.TURSO_AUTH_TOKEN,
+const globalForMastra = globalThis as MastraGlobal;
+
+function getPostgresStore() {
+  if (globalForMastra.mastraPgStore) {
+    return globalForMastra.mastraPgStore;
+  }
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      'DATABASE_URL is required. Use a Neon pooled connection string for both local and production.',
+    );
+  }
+
+  const store = new PostgresStore({
+    id: 'neon-storage',
+    connectionString,
+  });
+  globalForMastra.mastraPgStore = store;
+  return store;
+}
+
+export const mastra =
+  globalForMastra.mastra ??
+  new Mastra({
+    workflows: { weatherWorkflow },
+    agents: { weatherAgent },
+    storage: getPostgresStore(),
+    logger: new PinoLogger({
+      name: 'Mastra',
+      level: 'info',
     }),
-    domains: {
-      observability: await new DuckDBStore().getStore('observability'),
-    }
-  }),
-  logger: new PinoLogger({
-    name: 'Mastra',
-    level: 'info',
-  }),
-  observability: new Observability({
-    configs: {
-      default: {
-        serviceName: 'mastra',
-        exporters: [
-          new MastraStorageExporter(), // Persists observability events to Mastra Storage
-          new MastraPlatformExporter(), // Sends observability events to Mastra Platform (if MASTRA_PLATFORM_ACCESS_TOKEN is set)
-        ],
-        spanOutputProcessors: [
-          new SensitiveDataFilter(), // Redacts sensitive data like passwords, tokens, keys
-        ],
+    observability: new Observability({
+      configs: {
+        default: {
+          serviceName: 'mastra',
+          exporters: [
+            new MastraStorageExporter(),
+            new MastraPlatformExporter(),
+          ],
+          spanOutputProcessors: [new SensitiveDataFilter()],
+        },
       },
-    },
-  }),
-});
+    }),
+  });
+
+globalForMastra.mastra = mastra;

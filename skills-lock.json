@@ -6,6 +6,16 @@
       "sourceType": "github",
       "skillPath": "skills/mastra/SKILL.md",
       "computedHash": "fb441925625ae056b2d7d76c736c357c57e62901ee75d3da4dcf2feb19c635c9"
+    },
+    "migrate-radix-to-base": {
+      "source": "C:/Users/tusha/AppData/Local/Temp/shadcn-ui-skills",
+      "sourceType": "local",
+      "computedHash": "4fdc31bf287f674ba6bf91a648120f7b34cd7ef370f998f2cc116fed067789c5"
+    },
+    "shadcn": {
+      "source": "C:/Users/tusha/AppData/Local/Temp/shadcn-ui-skills",
+      "sourceType": "local",
+      "computedHash": "d04e43ec01e921558b93bb8046c14a42a22556689a2827243df900825a4e1604"
     }
   }
 }
