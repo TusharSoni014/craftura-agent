@@ -126,5 +126,10 @@
   }
   html {
     @apply font-sans;
+    color-scheme: dark;
+  }
+
+  [data-aifx-wm] {
+    display: none !important;
   }
 }
